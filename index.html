@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番剧管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #8b5cf6;
+            --secondary-color: #ec4899;
+            --background-color: #f3f4f6;
+            --card-background: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+        }
+        .dark {
+            --primary-color: #a78bfa;
+            --secondary-color: #f472b6;
+            --background-color: #111827;
+            --card-background: #1f2937;
+            --text-color: #f9fafb;
+            --border-color: #374151;
+        }
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .card {
+            background-color: var(--card-background);
+            border-color: var(--border-color);
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #7c3aed;
+        }
+        .dark .btn-primary:hover {
+            background-color: #8b5cf6;
+        }
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .btn-secondary:hover {
+            background-color: #db2777;
+        }
+        .dark .btn-secondary:hover {
+            background-color: #ec4899;
+        }
+        .input-field {
+            background-color: var(--card-background);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        .modal {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            background-color: var(--card-background);
+        }
+        .tab-active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        .episode-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .episode-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .character-card {
+            transition: transform 0.2s;
+        }
+        .character-card:hover {
+            transform: scale(1.05);
+        }
+        .acs-bar {
+            background-color: var(--border-color);
+            border-radius: 9999px;
+            height: 8px;
+            overflow: hidden;
+        }
+        .acs-progress {
+            background-color: var(--primary-color);
+            height: 100%;
+            transition: width 0.5s ease-in-out;
+        }
+        /* 星星评分样式 */
+        .star-rating {
+            display: inline-flex;
+            gap: 4px;
+        }
+        .star {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .star:hover {
+            transform: scale(1.2);
+        }
+        .star.active {
+            fill: #fbbf24;
+            color: #fbbf24;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 头部 -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-transparent bg-clip-text">番剧管理系统</h1>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <i data-lucide="sun" class="dark:hidden"></i>
+                    <i data-lucide="moon" class="hidden dark:block"></i>
+                </button>
+                <button id="add-anime-btn" class="btn-primary px-4 py-2 rounded-lg flex items-center space-x-2">
+                    <i data-lucide="plus"></i>
+                    <span>添加番剧</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 番剧列表 -->
+        <div id="anime-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- 番剧卡片将在这里动态生成 -->
+        </div>
+
+        <!-- 番剧详情模态框 -->
+        <div id="anime-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal">
+            <div class="modal-content rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="modal-anime-title" class="text-2xl font-bold"></h2>
+                    <button id="close-anime-detail" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div id="anime-detail-content">
+                    <!-- 番剧详情内容将在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加番剧模态框 -->
+        <div id="add-anime-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal">
+            <div class="modal-content rounded-lg shadow-xl w-full max-w-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">添加番剧</h2>
+                    <button id="close-add-anime" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="add-anime-form" class="space-y-4">
+                    <div>
+                        <label for="anime-name" class="block mb-2">番剧名称</label>
+                        <input type="text" id="anime-name" class="input-field w-full p-2 border rounded-lg" required>
+                    </div>
+                    <div>
+                        <label for="anime-episodes" class="block mb-2">集数</label>
+                        <input type="number" id="anime-episodes" class="input-field w-full p-2 border rounded-lg" min="1" required>
+                    </div>
+                    <div>
+                        <label for="anime-image" class="block mb-2">番剧图片</label>
+                        <input type="file" id="anime-image" class="input-field w-full p-2 border rounded-lg" accept="image/*" required>
+                        <div id="anime-image-preview" class="mt-2 hidden">
+                            <img src="" alt="预览" class="w-full h-32 object-cover rounded-lg">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary w-full py-2 rounded-lg">保存</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 添加角色模态框 -->
+        <div id="add-character-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal">
+            <div class="modal-content rounded-lg shadow-xl w-full max-w-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">添加角色</h2>
+                    <button id="close-add-character" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="add-character-form" class="space-y-4">
+                    <input type="hidden" id="character-anime-id">
+                    <div>
+                        <label for="character-name" class="block mb-2">角色姓名</label>
+                        <input type="text" id="character-name" class="input-field w-full p-2 border rounded-lg" required>
+                    </div>
+                    <div>
+                        <label for="character-image" class="block mb-2">角色图片</label>
+                        <input type="file" id="character-image" class="input-field w-full p-2 border rounded-lg" accept="image/*" required>
+                        <div id="character-image-preview" class="mt-2 hidden">
+                            <img src="" alt="预览" class="w-full h-32 object-cover rounded-lg">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary w-full py-2 rounded-lg">保存</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 编辑角色参数模态框 -->
+        <div id="edit-character-params-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal">
+            <div class="modal-content rounded-lg shadow-xl w-full max-w-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="edit-params-title" class="text-2xl font-bold"></h2>
+                    <button id="close-edit-params" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <form id="edit-params-form" class="space-y-4">
+                    <input type="hidden" id="params-anime-id">
+                    <input type="hidden" id="params-episode-index">
+                    <input type="hidden" id="params-character-id">
+                    <div>
+                        <label for="heartbeat-count" class="block mb-2">心动次数</label>
+                        <input type="number" id="heartbeat-count" class="input-field w-full p-2 border rounded-lg" min="0" value="0">
+                    </div>
+                    <div>
+                        <label for="rejection-count" class="block mb-2">被回防次数</label>
+                        <input type="number" id="rejection-count" class="input-field w-full p-2 border rounded-lg" min="0" value="0">
+                    </div>
+                    <div>
+                        <label for="screen-time" class="block mb-2">出场时间（分钟）</label>
+                        <input type="number" id="screen-time" class="input-field w-full p-2 border rounded-lg" min="0" step="0.1" value="0">
+                    </div>
+                    <div>
+                        <label for="heartbeat-level" class="block mb-2">心动程度（1-5）</label>
+                        <input type="number" id="heartbeat-level" class="input-field w-full p-2 border rounded-lg" min="1" max="5" value="1">
+                    </div>
+                    <button type="submit" class="btn-primary w-full py-2 rounded-lg">保存</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化 Lucide 图标
+        lucide.createIcons();
+
+        // 数据存储
+        let animes = [
+            {
+                id: 1,
+                name: "和青梅竹马之间不会有恋爱喜剧",
+                episodes: 12,
+                image: "https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/ba5dc06402774ecf99b048bd58bc6fb2.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202602030807077304A4C8FEC72F39CB46&rrcfp=8a172a1a&x-expires=1770682028&x-signature=9Ln62o%2F6DFFWDkhHwdSghLCQi2Q%3D",
+                episodesData: {}, // 存储每集的评分数据
+                characters: [
+                    {
+                        id: 1,
+                        name: "水萌汐",
+                        image: "https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/7e92d51bc8df403aa76447a3ea46e068.jpg~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202602030807077304A4C8FEC72F39CB46&rrcfp=8a172a1a&x-expires=1770682028&x-signature=%2FtpabyeoPP7mjeq1WtB1HI1jFA0%3D",
+                        episodeParams: {}
+                    },
+                    {
+                        id: 2,
+                        name: "小熊内裤",
+                        image: "https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/b98c22f9fa4b4a1aa3e0381962ed5472.jpg~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202602030807077304A4C8FEC72F39CB46&rrcfp=8a172a1a&x-expires=1770682028&x-signature=lbiC92mQYTWi9vbjgZ%2BY287Jz6A%3D",
+                        episodeParams: {}
+                    },
+                    {
+                        id: 3,
+                        name: "月见瑠奈",
+                        image: "https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/a6a8d3c7e4624b508428136952a28e9a.jpg~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202602030807077304A4C8FEC72F39CB46&rrcfp=8a172a1a&x-expires=1770682028&x-signature=a4BrvgcsZ15xF3ju%2BGlerG77OEU%3D",
+                        episodeParams: {}
+                    },
+                    {
+                        id: 4,
+                        name: "黑皮体育生",
+                        image: "https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/092b984642414c389bc08179891a6894.jpg~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202602030807077304A4C8FEC72F39CB46&rrcfp=8a172a1a&x-expires=1770682028&x-signature=3GSdEaGKI%2BLK0qWpt3C4LCBsKSo%3D",
+                        episodeParams: {}
+                    }
+                ]
+            }
+        ];
+
+        let currentAnimeId = null;
+        let currentEpisodeIndex = null;
+
+        // DOM 元素
+        const animeList = document.getElementById('anime-list');
+        const animeDetailModal = document.getElementById('anime-detail-modal');
+        const addAnimeModal = document.getElementById('add-anime-modal');
+        const addCharacterModal = document.getElementById('add-character-modal');
+        const editCharacterParamsModal = document.getElementById('edit-character-params-modal');
+
+        // 事件监听器
+        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+        document.getElementById('add-anime-btn').addEventListener('click', () => addAnimeModal.classList.remove('hidden'));
+        document.getElementById('close-anime-detail').addEventListener('click', () => animeDetailModal.classList.add('hidden'));
+        document.getElementById('close-add-anime').addEventListener('click', () => addAnimeModal.classList.add('hidden'));
+        document.getElementById('close-add-character').addEventListener('click', () => addCharacterModal.classList.add('hidden'));
+        document.getElementById('close-edit-params').addEventListener('click', () => editCharacterParamsModal.classList.add('hidden'));
+        document.getElementById('add-anime-form').addEventListener('submit', handleAddAnime);
+        document.getElementById('add-character-form').addEventListener('submit', handleAddCharacter);
+        document.getElementById('edit-params-form').addEventListener('submit', handleEditParams);
+        document.getElementById('anime-image').addEventListener('change', handleImagePreview);
+        document.getElementById('character-image').addEventListener('change', handleImagePreview);
+
+        // 初始化
+        function init() {
+            loadAnimes();
+            renderAnimeList();
+            // 检查系统主题偏好
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        // 集数评分功能
+        function rateEpisode(animeId, episodeIndex, rating) {
+            const anime = animes.find(a => a.id === animeId);
+            if (!anime.episodesData) {
+                anime.episodesData = {};
+            }
+            anime.episodesData[episodeIndex] = { rating };
+            
+            // 更新显示
+            document.getElementById('episode-rating-display').textContent = `${rating} / 10`;
+            
+            // 更新星星状态
+            const stars = document.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+            
+            saveAnimes();
+        }
+
+        // 渲染番剧列表
+        function renderAnimeList() {
+            animeList.innerHTML = '';
+            animes.forEach(anime => {
+                const animeCard = document.createElement('div');
+                animeCard.className = 'card rounded-lg shadow-lg overflow-hidden episode-card relative transform scale-105';
+                // 计算平均分
+                const episodeRatings = Object.values(anime.episodesData || {}).map(d => d.rating);
+                const averageRating = episodeRatings.length > 0 
+                    ? (episodeRatings.reduce((sum, r) => sum + r, 0) / episodeRatings.length).toFixed(1)
+                    : '暂无评分';
+                
+                animeCard.innerHTML = `
+                    <div class="absolute top-4 right-4 space-x-2">
+                        <button onclick="openEditAnimeModal(${anime.id})" class="p-2 bg-green-500 hover:bg-green-600 text-white rounded-full">
+                            <i data-lucide="edit"></i>
+                        </button>
+                    </div>
+                    <img src="${anime.image}" alt="${anime.name}" class="w-full h-64 object-cover">
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-3">${anime.name}</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4 text-lg">${anime.episodes} 集</p>
+                        <button onclick="viewAnimeDetail(${anime.id})" class="btn-primary w-full py-3 rounded-lg text-lg">查看详情</button>
+                    </div>
+                `;
+                animeList.appendChild(animeCard);
+            });
+            lucide.createIcons();
+        }
+
+        // 查看番剧详情
+        function viewAnimeDetail(animeId) {
+            currentAnimeId = animeId;
+            const anime = animes.find(a => a.id === animeId);
+            document.getElementById('modal-anime-title').textContent = anime.name;
+            
+            const content = document.getElementById('anime-detail-content');
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1">
+                        <img src="${anime.image}" alt="${anime.name}" class="w-full rounded-lg">
+                        <button onclick="openAddCharacterModal(${anime.id})" class="btn-secondary w-full py-2 rounded-lg mt-4 flex items-center justify-center space-x-2">
+                            <i data-lucide="user-plus"></i>
+                            <span>添加角色</span>
+                        </button>
+                    </div>
+                    <div class="md:col-span-2">
+                        <div class="mb-6">
+                            <h3 class="text-xl font-bold mb-4">角色列表</h3>
+                            <div id="character-list" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                ${anime.characters.map(character => `
+                                    <div class="character-card text-center cursor-pointer" onclick="showCharacterOptions(${anime.id}, ${character.id})">
+                                        <img src="${character.image}" alt="${character.name}" class="w-24 h-24 object-cover rounded-full mx-auto mb-2">
+                                        <p class="font-medium">${character.name}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold mb-4">选集</h3>
+                            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                ${Array.from({ length: anime.episodes }, (_, i) => i + 1).map(episodeNum => `
+                                    <button onclick="viewEpisode(${anime.id}, ${episodeNum - 1})" class="episode-card card p-3 rounded-lg text-center hover:bg-gray-100 dark:hover:bg-gray-700">
+                                        第 ${episodeNum} 集
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="episode-content" class="mt-8 hidden">
+                    <!-- 集数内容将在这里动态生成 -->
+                </div>
+            `;
+            lucide.createIcons();
+            animeDetailModal.classList.remove('hidden');
+        }
+
+        // 查看集数详情
+        function viewEpisode(animeId, episodeIndex) {
+            currentEpisodeIndex = episodeIndex;
+            const anime = animes.find(a => a.id === animeId);
+            const episodeContent = document.getElementById('episode-content');
+            
+            episodeContent.innerHTML = `
+                <div class="border-t pt-6">
+                    <h3 class="text-2xl font-bold mb-4">第 ${episodeIndex + 1} 集</h3>
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <span class="text-gray-600 dark:text-gray-400">本集评分：</span>
+                            <span id="episode-rating-display" class="text-xl font-bold text-yellow-500">${anime.episodesData[episodeIndex]?.rating || 0} / 10</span>
+                        </div>
+                        <div class="star-rating" id="star-rating">
+                            ${Array.from({ length: 10 }, (_, i) => `
+                                <i data-lucide="star" class="star w-6 h-6 ${(anime.episodesData[episodeIndex]?.rating || 0) > i ? 'active' : ''}" onclick="rateEpisode(${animeId}, ${episodeIndex}, ${i + 1})"></i>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div id="character-params-list" class="space-y-6">
+                        ${anime.characters.map(character => {
+                            const params = character.episodeParams[episodeIndex] || {
+                                heartbeatCount: 0,
+                                rejectionCount: 0,
+                                screenTime: 0,
+                                heartbeatLevel: 0
+                            };
+                            const acs = calculateACS(params);
+                            return `
+                                <div class="card p-4 rounded-lg">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center space-x-4">
+                                            <img src="${character.image}" alt="${character.name}" class="w-16 h-16 object-cover rounded-full">
+                                            <div>
+                                                <h4 class="text-lg font-bold">${character.name}</h4>
+                                                <p class="text-xl font-bold px-3 py-1 rounded-full inline-block ${acs > 400 ? 'text-black bg-gradient-to-r from-yellow-400 to-yellow-600' : acs > 250 ? 'text-white bg-gradient-to-r from-green-500 to-emerald-600' : 'text-white bg-gradient-to-r from-red-600 to-pink-600'}">ACS: ${acs.toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                        <button onclick="editCharacterParams(${animeId}, ${episodeIndex}, ${character.id})" class="btn-primary px-4 py-2 rounded-lg">
+                                            编辑参数
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                        <div class="text-center">
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">心动次数</p>
+                                            <p class="font-bold">${params.heartbeatCount}</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">被回防次数</p>
+                                            <p class="font-bold">${params.rejectionCount}</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">出场时间（分钟）</p>
+                                            <p class="font-bold">${params.screenTime}</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">心动程度</p>
+                                            <p class="font-bold">${params.heartbeatLevel}</p>
+                                        </div>
+                                    </div>
+                                    <div class="acs-bar">
+                                        <div class="acs-progress" style="width: ${Math.min(acs, 100)}%"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div class="mt-8">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">比较 ACS</h3>
+                            <div>
+                                <button id="select-all-characters" class="btn-secondary px-4 py-2 rounded-lg mr-2">全选</button>
+                                <button id="compare-acs" class="btn-primary px-4 py-2 rounded-lg">比较 ACS</button>
+                            </div>
+                        </div>
+                        <div id="character-selection-list" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                            ${anime.characters.map(character => `
+                                <div class="character-card text-center p-2 border rounded-lg">
+                                    <input type="checkbox" id="character-${character.id}" class="character-checkbox" value="${character.id}">
+                                    <label for="character-${character.id}" class="flex flex-col items-center cursor-pointer">
+                                        <img src="${character.image}" alt="${character.name}" class="w-16 h-16 object-cover rounded-full mx-auto mb-2">
+                                        <p class="font-medium">${character.name}</p>
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div id="comparison-result" class="hidden">
+                            <h3 class="text-xl font-bold mb-4">ACS 比较结果</h3>
+                            <div id="comparison-chart-container" class="h-80"></div>
+                            <div class="mt-6 text-center">
+                                <h3 class="text-xl font-bold mb-4">本集冠军</h3>
+                                <div id="episode-winner" class="text-2xl font-bold text-purple-500">
+                                    暂无
+                                </div>
+                                <div id="winner-image-container" class="mt-4 hidden">
+                                    <img id="winner-image" src="" alt="冠军角色" class="w-32 h-32 object-cover rounded-full mx-auto">
+                                    <button id="celebrate-btn" class="btn-secondary mt-4 px-6 py-2 rounded-lg">庆祝！</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 重新初始化 Lucide 图标（星星图标）
+            lucide.createIcons();
+            
+            // 添加事件监听器
+            setTimeout(() => {
+                document.getElementById('select-all-characters').addEventListener('click', () => {
+                    const checkboxes = document.querySelectorAll('.character-checkbox');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = true;
+                    });
+                });
+                
+                document.getElementById('compare-acs').addEventListener('click', () => {
+                    const selectedCharacterIds = Array.from(document.querySelectorAll('.character-checkbox:checked')).map(cb => parseInt(cb.value));
+                    if (selectedCharacterIds.length === 0) {
+                        alert('请至少选择一个角色进行比较');
+                        return;
+                    }
+                    
+                    const selectedCharacters = anime.characters.filter(c => selectedCharacterIds.includes(c.id));
+                    compareCharactersACS(selectedCharacters, episodeIndex);
+                });
+            }, 0);
+            
+            episodeContent.classList.remove('hidden');
+        }
+        
+        // 比较角色 ACS
+        function compareCharactersACS(characters, episodeIndex) {
+            const comparisonResult = document.getElementById('comparison-result');
+            const comparisonChartContainer = document.getElementById('comparison-chart-container');
+            const episodeWinner = document.getElementById('episode-winner');
+            
+            // 准备图表数据
+            const labels = characters.map(c => c.name);
+            const acsValues = characters.map(c => {
+                const params = c.episodeParams[episodeIndex] || {
+                    heartbeatCount: 0,
+                    rejectionCount: 0,
+                    screenTime: 0,
+                    heartbeatLevel: 0
+                };
+                return calculateACS(params);
+            });
+            
+            // 找出 ACS 最高的角色
+            let maxACS = -1;
+            let winner = "暂无数据";
+            characters.forEach((character, index) => {
+                if (acsValues[index] > maxACS) {
+                    maxACS = acsValues[index];
+                    winner = character.name;
+                }
+            });
+            
+            // 清空并创建图表
+            comparisonChartContainer.innerHTML = '';
+            const canvas = document.createElement('canvas');
+            canvas.id = 'acs-comparison-chart';
+            comparisonChartContainer.appendChild(canvas);
+            
+            // 创建图表
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ACS 值',
+                        data: acsValues,
+                        backgroundColor: acsValues.map(acs => acs > 400 ? 'rgba(250, 204, 21, 0.7)' : acs > 250 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)'),
+                        borderColor: acsValues.map(acs => acs > 400 ? 'rgba(234, 179, 8, 1)' : acs > 250 ? 'rgba(22, 163, 74, 1)' : 'rgba(220, 38, 38, 1)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'ACS 值'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `ACS: ${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新冠军
+            episodeWinner.textContent = maxACS > 0 ? winner : "暂无数据";
+            
+            // 显示冠军立绘
+            const winnerImageContainer = document.getElementById('winner-image-container');
+            const winnerImage = document.getElementById('winner-image');
+            if (maxACS > 0) {
+                const winnerCharacter = characters.find(c => c.name === winner);
+                winnerImage.src = winnerCharacter.image;
+                winnerImageContainer.classList.remove('hidden');
+                
+                // 添加庆祝按钮事件
+                document.getElementById('celebrate-btn').onclick = function() {
+                    celebrateWinner(winnerCharacter);
+                };
+            } else {
+                winnerImageContainer.classList.add('hidden');
+            }
+
+
+            
+            // 显示结果
+            comparisonResult.classList.remove('hidden');
+        }
+
+        // 计算 ACS
+        function calculateACS(params) {
+            const { heartbeatCount, rejectionCount, screenTime, heartbeatLevel } = params;
+            if (screenTime === 0) return 0;
+            const maxHeartbeatLevel = 5;
+            const acs = Math.max(0, ((heartbeatCount * 2 - rejectionCount * 1 + Math.min(heartbeatLevel, maxHeartbeatLevel) * 5) / screenTime) * 23 * 10);
+            return acs;
+        }
+
+        // 计算本集冠军
+        function calculateWinner(anime, episodeIndex) {
+            let maxACS = -1;
+            let winner = "暂无数据";
+            anime.characters.forEach(character => {
+                const params = character.episodeParams[episodeIndex] || {
+                    heartbeatCount: 0,
+                    rejectionCount: 0,
+                    screenTime: 0,
+                    heartbeatLevel: 0
+                };
+                const acs = calculateACS(params);
+                if (acs > maxACS) {
+                    maxACS = acs;
+                    winner = character.name;
+                }
+            });
+            return maxACS > 0 ? winner : "暂无数据";
+        }
+
+        // 打开添加角色模态框
+        function openAddCharacterModal(animeId) {
+            document.getElementById('character-anime-id').value = animeId;
+            addCharacterModal.classList.remove('hidden');
+        }
+
+        // 打开编辑角色参数模态框
+        function editCharacterParams(animeId, episodeIndex, characterId) {
+            const anime = animes.find(a => a.id === animeId);
+            const character = anime.characters.find(c => c.id === characterId);
+            const params = character.episodeParams[episodeIndex] || {
+                heartbeatCount: 0,
+                rejectionCount: 0,
+                screenTime: 0,
+                heartbeatLevel: 0
+            };
+
+            document.getElementById('edit-params-title').textContent = `编辑 ${character.name} 的参数`;
+            document.getElementById('params-anime-id').value = animeId;
+            document.getElementById('params-episode-index').value = episodeIndex;
+            document.getElementById('params-character-id').value = characterId;
+            document.getElementById('heartbeat-count').value = params.heartbeatCount;
+            document.getElementById('rejection-count').value = params.rejectionCount;
+            document.getElementById('screen-time').value = params.screenTime;
+            document.getElementById('heartbeat-level').value = params.heartbeatLevel;
+
+            editCharacterParamsModal.classList.remove('hidden');
+        }
+
+        // 处理图片预览
+        function handleImagePreview(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                const previewId = e.target.id === 'anime-image' ? 'anime-image-preview' : 'character-image-preview';
+                const preview = document.getElementById(previewId);
+                
+                reader.onload = function(event) {
+                    preview.querySelector('img').src = event.target.result;
+                    preview.classList.remove('hidden');
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 处理添加番剧
+        function handleAddAnime(e) {
+            e.preventDefault();
+            const name = document.getElementById('anime-name').value;
+            const episodes = parseInt(document.getElementById('anime-episodes').value);
+            const imageFile = document.getElementById('anime-image').files[0];
+
+            if (!imageFile) {
+                alert('请选择图片');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const image = event.target.result;
+                const newAnime = {
+                    id: Date.now(),
+                    name,
+                    episodes,
+                    image,
+                    episodesData: {}, // 初始化评分数据
+                    characters: []
+                };
+
+                console.log('添加新番剧:', newAnime);
+                animes.push(newAnime);
+                console.log('添加后的数据:', animes);
+                saveAnimes();
+                console.log('保存后的数据:', localStorage.getItem('animes'));
+                renderAnimeList();
+                addAnimeModal.classList.add('hidden');
+                document.getElementById('add-anime-form').reset();
+                document.getElementById('anime-image-preview').classList.add('hidden');
+                alert(`番剧《${name}》添加成功！`);
+            };
+            reader.onerror = function(error) {
+                console.error('文件读取失败:', error);
+                alert('图片读取失败，请重试');
+            };
+            reader.readAsDataURL(imageFile);
+        }
+
+        // 处理添加角色
+        function handleAddCharacter(e) {
+            e.preventDefault();
+            const animeId = parseInt(document.getElementById('character-anime-id').value);
+            const name = document.getElementById('character-name').value;
+            const imageFile = document.getElementById('character-image').files[0];
+
+            if (!imageFile) {
+                alert('请选择图片');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const image = event.target.result;
+                const anime = animes.find(a => a.id === animeId);
+                const newCharacter = {
+                    id: Date.now(),
+                    name,
+                    image,
+                    episodeParams: {}
+                };
+
+                anime.characters.push(newCharacter);
+                viewAnimeDetail(animeId);
+                addCharacterModal.classList.add('hidden');
+                document.getElementById('add-character-form').reset();
+                document.getElementById('character-image-preview').classList.add('hidden');
+            };
+            reader.readAsDataURL(imageFile);
+        }
+
+        // 处理编辑角色参数
+        function handleEditParams(e) {
+            e.preventDefault();
+            const animeId = parseInt(document.getElementById('params-anime-id').value);
+            const episodeIndex = parseInt(document.getElementById('params-episode-index').value);
+            const characterId = parseInt(document.getElementById('params-character-id').value);
+            const heartbeatCount = parseInt(document.getElementById('heartbeat-count').value);
+            const rejectionCount = parseInt(document.getElementById('rejection-count').value);
+            const screenTime = parseFloat(document.getElementById('screen-time').value);
+            const heartbeatLevel = parseInt(document.getElementById('heartbeat-level').value);
+
+            const anime = animes.find(a => a.id === animeId);
+            const character = anime.characters.find(c => c.id === characterId);
+
+            // 保存新参数
+            character.episodeParams[episodeIndex] = {
+                heartbeatCount,
+                rejectionCount,
+                screenTime,
+                heartbeatLevel
+            };
+
+            // 重新计算并更新当前集数的所有角色ACS值和冠军
+            viewEpisode(animeId, episodeIndex);
+            
+            // 关闭模态框
+            editCharacterParamsModal.classList.add('hidden');
+        }
+
+        // 庆祝冠军
+        function celebrateWinner(character) {
+            // 创建庆祝效果
+            const container = document.createElement('div');
+            container.className = 'fixed inset-0 pointer-events-none z-50 flex items-center justify-center';
+            container.innerHTML = `
+                <div class="text-center">
+                    <img src="${character.image}" alt="${character.name}" class="w-48 h-48 object-cover rounded-full mx-auto">
+                    <h2 class="text-4xl font-bold mt-4 text-purple-500">恭喜 ${character.name}！</h2>
+                    <p class="text-xl mt-2">本集的 ACS 冠军！</p>
+                </div>
+            `;
+            document.body.appendChild(container);
+            
+            // 添加动画
+            container.animate([
+                { opacity: 0, transform: 'scale(0.5)' },
+                { opacity: 1, transform: 'scale(1)' },
+                { opacity: 1, transform: 'scale(1)' },
+                { opacity: 0, transform: 'scale(1.5)' }
+            ], {
+                duration: 3000,
+                easing: 'ease-in-out'
+            }).onfinish = () => {
+                document.body.removeChild(container);
+            };
+            
+            // 创建彩带效果
+            createConfetti();
+        }
+        
+        // 创建彩带效果
+        function createConfetti() {
+            const confettiContainer = document.createElement('div');
+            confettiContainer.className = 'fixed inset-0 pointer-events-none z-50';
+            document.body.appendChild(confettiContainer);
+            
+            const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590', '#f94144', '#f3722c', '#f8961e'];
+            
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'absolute w-4 h-4 rounded-full';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.top = `${Math.random() * 100}%`;
+                confettiContainer.appendChild(confetti);
+                
+                confetti.animate([
+                    { transform: 'translateY(0) rotate(0deg)' },
+                    { transform: `translateY(${Math.random() * 500 + 200}px) rotate(${Math.random() * 360}deg)` }
+                ], {
+                    duration: Math.random() * 3000 + 2000,
+                    easing: 'ease-in-out'
+                }).onfinish = () => {
+                    confettiContainer.removeChild(confetti);
+                    if (confettiContainer.children.length === 0) {
+                        document.body.removeChild(confettiContainer);
+                    }
+                };
+            }
+        }
+
+        // 切换主题
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        // 点击模态框外部关闭
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.add('hidden');
+            }
+        });
+
+        // 查看角色详情
+        function viewCharacterDetail(animeId, characterId) {
+            const anime = animes.find(a => a.id === animeId);
+            const character = anime.characters.find(c => c.id === characterId);
+            
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center modal';
+            modal.innerHTML = `
+                <div class="modal-content rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">${character.name} 的 ACS 趋势</h2>
+                        <button id="close-character-detail" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-4 mb-6">
+                        <img src="${character.image}" alt="${character.name}" class="w-32 h-32 object-cover rounded-full">
+                        <div>
+                            <h3 class="text-xl font-bold">${character.name}</h3>
+                            <p class="text-gray-600 dark:text-gray-400">出自：${anime.name}</p>
+                        </div>
+                    </div>
+                    <div id="character-chart-container" class="h-80"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 添加事件监听器
+            document.getElementById('close-character-detail').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+            
+            // 点击模态框外部关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+            
+            // 渲染图表
+            renderCharacterChart(character, anime.episodes);
+            
+            // 初始化图标
+            lucide.createIcons();
+        }
+        
+        // 渲染角色 ACS 趋势图
+        function renderCharacterChart(character, totalEpisodes) {
+            const container = document.getElementById('character-chart-container');
+            
+            // 准备数据
+            const labels = Array.from({ length: totalEpisodes }, (_, i) => `第 ${i + 1} 集`);
+            const acsValues = Array.from({ length: totalEpisodes }, (_, i) => {
+                const params = character.episodeParams[i] || {
+                    heartbeatCount: 0,
+                    rejectionCount: 0,
+                    screenTime: 0,
+                    heartbeatLevel: 0
+                };
+                return calculateACS(params);
+            });
+            
+            // 创建图表
+            const canvas = document.createElement('canvas');
+            container.appendChild(canvas);
+            
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ACS 值',
+                        data: acsValues,
+                        borderColor: acsValues.some(acs => acs > 400) ? 'rgba(234, 179, 8, 1)' : acsValues.some(acs => acs > 250) ? 'rgba(34, 197, 94, 1)' : 'rgba(139, 92, 246, 1)',
+                        backgroundColor: acsValues.some(acs => acs > 400) ? 'rgba(250, 204, 21, 0.2)' : acsValues.some(acs => acs > 250) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(139, 92, 246, 0.2)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'ACS 值'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `ACS: ${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 显示角色操作选项
+        function showCharacterOptions(animeId, characterId) {
+            const anime = animes.find(a => a.id === animeId);
+            const character = anime.characters.find(c => c.id === characterId);
+            
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center modal';
+            modal.innerHTML = `
+                <div class="modal-content rounded-lg shadow-xl w-full max-w-md p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">${character.name}</h2>
+                        <button id="close-character-options" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-4 mb-6">
+                        <img src="${character.image}" alt="${character.name}" class="w-32 h-32 object-cover rounded-full">
+                        <div>
+                            <h3 class="text-xl font-bold">${character.name}</h3>
+                            <p class="text-gray-600 dark:text-gray-400">出自：${anime.name}</p>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <button id="view-character-chart" class="btn-primary w-full py-3 rounded-lg flex items-center justify-center space-x-2">
+                            <i data-lucide="line-chart"></i>
+                            <span>查看 ACS 趋势图</span>
+                        </button>
+                        <button id="view-character-radar" class="bg-purple-600 hover:bg-purple-700 text-white font-bold w-full py-3 rounded-lg transition-colors duration-300 flex items-center justify-center space-x-2">
+                            <i data-lucide="activity"></i>
+                            <span>查看角色五边形图</span>
+                        </button>
+                        <button id="edit-character-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold w-full py-3 rounded-lg transition-colors duration-300 flex items-center justify-center space-x-2">
+                            <i data-lucide="edit"></i>
+                            <span>编辑角色信息</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 添加事件监听器
+            document.getElementById('close-character-options').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            document.getElementById('view-character-chart').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                viewCharacterDetail(animeId, characterId);
+            });
+
+            document.getElementById('view-character-radar').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                viewCharacterRadar(animeId, characterId);
+            });
+
+            document.getElementById('edit-character-btn').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                openEditCharacterModal(animeId, characterId);
+            });
+            
+            // 点击模态框外部关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+            
+            // 初始化图标
+            lucide.createIcons();
+        }
+
+        // 查看角色五边形图
+        function viewCharacterRadar(animeId, characterId) {
+            const anime = animes.find(a => a.id === animeId);
+            const character = anime.characters.find(c => c.id === characterId);
+            
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center modal';
+            modal.innerHTML = `
+                <div class="modal-content rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">${character.name} 的五维参数分布</h2>
+                        <button id="close-character-radar" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-4 mb-6">
+                        <img src="${character.image}" alt="${character.name}" class="w-32 h-32 object-cover rounded-full">
+                        <div>
+                            <h3 class="text-xl font-bold">${character.name}</h3>
+                            <p class="text-gray-600 dark:text-gray-400">出自：${anime.name}</p>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label for="radar-episode-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">选择集数：</label>
+                        <select id="radar-episode-select" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            ${Array.from({ length: anime.episodes }, (_, i) => `<option value="${i}">第 ${i + 1} 集</option>`).join('')}
+                        </select>
+                    </div>
+                    <div id="character-radar-container" class="h-80"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 添加事件监听器
+            document.getElementById('close-character-radar').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+            
+            // 点击模态框外部关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+
+            // 监听集数选择变化
+            document.getElementById('radar-episode-select').addEventListener('change', (e) => {
+                const selectedEpisode = parseInt(e.target.value);
+                renderCharacterRadar(character, selectedEpisode);
+            });
+            
+            // 渲染图表
+            renderCharacterRadar(character, 0);
+            
+            // 初始化图标
+            lucide.createIcons();
+        }
+        
+        // 渲染角色五边形图
+        function renderCharacterRadar(character, episodeIndex) {
+            const container = document.getElementById('character-radar-container');
+            container.innerHTML = ''; // 清空容器
+
+            // 获取指定集数的参数，如果没有则使用默认值
+            const params = character.episodeParams[episodeIndex] || {
+                heartbeatCount: 0,
+                rejectionCount: 0,
+                screenTime: 0,
+                heartbeatLevel: 0
+            };
+
+            // 计算 ACS
+            const acs = calculateACS(params);
+
+            // 准备数据，进行归一化处理
+            const maxHeartbeatCount = 10; // 最大心动次数为10
+            const maxRejectionCount = 10; // 假设最大被回防次数为10
+            const maxScreenTime = 23;    // 最大出场时间为23分钟
+            const maxHeartbeatLevel = 5; // 心动程度最大为5
+            const maxACS = 350;         // ACS 最大值为 350
+
+            const normalizedData = [
+                Math.min(params.heartbeatCount / maxHeartbeatCount, 1),
+                Math.min(params.rejectionCount / maxRejectionCount, 1),
+                Math.min(params.screenTime / maxScreenTime, 1),
+                params.heartbeatLevel / maxHeartbeatLevel,
+                acs / maxACS  // 不限制最大值，超过300会超出五边形
+            ];
+
+            // 创建图表
+            const canvas = document.createElement('canvas');
+            container.appendChild(canvas);
+
+            new Chart(canvas, {
+                type: 'radar',
+                data: {
+                    labels: ['心动次数', '被回防次数', '出场时间', '心动程度', 'ACS'],
+                    datasets: [{
+                        label: '参数值',
+                        data: normalizedData,
+                        backgroundColor: acs > 400 ? 'rgba(250, 204, 21, 0.2)' : acs > 250 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(139, 92, 246, 0.2)',
+                        borderColor: acs > 400 ? 'rgba(234, 179, 8, 1)' : acs > 250 ? 'rgba(34, 197, 94, 1)' : 'rgba(139, 92, 246, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(139, 92, 246, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(139, 92, 246, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const rawData = [
+                                        params.heartbeatCount,
+                                        params.rejectionCount,
+                                        params.screenTime,
+                                        params.heartbeatLevel,
+                                        acs.toFixed(2)
+                                    ];
+                                    return `${context.label}: ${rawData[index]}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 打开编辑番剧模态框
+        function openEditAnimeModal(animeId) {
+            const anime = animes.find(a => a.id === animeId);
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">编辑番剧</h2>
+                        <button id="close-edit-anime-modal" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <form id="edit-anime-form" class="space-y-4">
+                        <input type="hidden" id="edit-anime-id" value="${anime.id}">
+                        <div>
+                            <label for="edit-anime-name" class="block mb-2">番剧名称</label>
+                            <input type="text" id="edit-anime-name" class="input-field w-full p-2 border rounded-lg" value="${anime.name}" required>
+                        </div>
+                        <div>
+                            <label for="edit-anime-episodes" class="block mb-2">集数</label>
+                            <input type="number" id="edit-anime-episodes" class="input-field w-full p-2 border rounded-lg" value="${anime.episodes}" min="1" required>
+                        </div>
+                        <div>
+                            <label for="edit-anime-image" class="block mb-2">番剧图片 (可选)</label>
+                            <input type="file" id="edit-anime-image" class="input-field w-full p-2 border rounded-lg" accept="image/*">
+                            <p class="text-sm text-gray-500 mt-1">如果不选择图片，则保持原有图片。</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <button type="button" id="delete-anime-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+                                <i data-lucide="trash-2" class="inline-block w-4 h-4 mr-1"></i> 删除番剧
+                            </button>
+                            <div class="space-x-2">
+                                <button type="button" id="cancel-edit-anime" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">取消</button>
+                                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">保存</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('close-edit-anime-modal').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            document.getElementById('cancel-edit-anime').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            document.getElementById('delete-anime-btn').addEventListener('click', () => {
+                if (confirm(`确定要删除番剧《${anime.name}》吗？此操作将删除该番剧的所有信息，包括角色、参数设置和评分数据，且无法撤销。`)) {
+                    deleteAnime(animeId);
+                    document.body.removeChild(modal);
+                }
+            });
+
+            document.getElementById('edit-anime-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('edit-anime-name').value;
+                const episodes = parseInt(document.getElementById('edit-anime-episodes').value);
+                const imageFile = document.getElementById('edit-anime-image').files[0];
+
+                if (imageFile) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        updateAnime(animeId, { name, episodes, image: event.target.result });
+                    };
+                    reader.readAsDataURL(imageFile);
+                } else {
+                    updateAnime(animeId, { name, episodes });
+                }
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+
+            lucide.createIcons();
+        }
+
+        // 更新番剧信息
+        function updateAnime(animeId, updates) {
+            const animeIndex = animes.findIndex(a => a.id === animeId);
+            if (animeIndex !== -1) {
+                const oldName = animes[animeIndex].name;
+                animes[animeIndex] = { ...animes[animeIndex], ...updates };
+                
+                // 如果集数增加了，为每个角色的新集数初始化参数
+                if (updates.episodes && updates.episodes > animes[animeIndex].episodes) {
+                    const oldEpisodes = animes[animeIndex].episodes;
+                    animes[animeIndex].characters.forEach(character => {
+                        for (let i = oldEpisodes; i < updates.episodes; i++) {
+                            character.episodeParams.push({
+                                heartbeatCount: 0,
+                                rejectionCount: 0,
+                                screenTime: 0,
+                                heartbeatLevel: 0
+                            });
+                        }
+                    });
+                }
+
+                saveAnimes();
+                alert(`番剧《${oldName}》已更新为《${animes[animeIndex].name}》`);
+                document.body.removeChild(document.querySelector('.fixed.inset-0.z-50')); // 关闭模态框
+                renderAnimeList();
+            }
+        }
+
+        // 更新番剧信息
+        function updateAnime(animeId, updates) {
+            const animeIndex = animes.findIndex(a => a.id === animeId);
+            if (animeIndex !== -1) {
+                const oldName = animes[animeIndex].name;
+                animes[animeIndex] = { ...animes[animeIndex], ...updates };
+                
+                // 如果集数增加了，为每个角色的新集数初始化参数
+                if (updates.episodes && updates.episodes > animes[animeIndex].episodes) {
+                    const oldEpisodes = animes[animeIndex].episodes;
+                    animes[animeIndex].characters.forEach(character => {
+                        for (let i = oldEpisodes; i < updates.episodes; i++) {
+                            character.episodeParams.push({
+                                heartbeatCount: 0,
+                                rejectionCount: 0,
+                                screenTime: 0,
+                                heartbeatLevel: 0
+                            });
+                        }
+                    });
+                }
+
+                saveAnimes();
+                alert(`番剧《${oldName}》已更新为《${animes[animeIndex].name}》`);
+                document.body.removeChild(document.querySelector('.fixed.inset-0.z-50')); // 关闭模态框
+                renderAnimeList();
+            }
+        }
+
+        // 打开编辑角色模态框
+        function openEditCharacterModal(animeId, characterId) {
+            const anime = animes.find(a => a.id === animeId);
+            const character = anime.characters.find(c => c.id === characterId);
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">编辑角色</h2>
+                        <button id="close-edit-character-modal" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <form id="edit-character-form" class="space-y-4">
+                        <input type="hidden" id="edit-character-anime-id" value="${animeId}">
+                        <input type="hidden" id="edit-character-id" value="${characterId}">
+                        <div>
+                            <label for="edit-character-name" class="block mb-2">角色名称</label>
+                            <input type="text" id="edit-character-name" class="input-field w-full p-2 border rounded-lg" value="${character.name}" required>
+                        </div>
+                        <div>
+                            <label for="edit-character-image" class="block mb-2">角色图片 (可选)</label>
+                            <input type="file" id="edit-character-image" class="input-field w-full p-2 border rounded-lg" accept="image/*">
+                            <p class="text-sm text-gray-500 mt-1">如果不选择图片，则保持原有图片。</p>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <button type="button" id="delete-character-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+                                <i data-lucide="trash-2" class="inline-block w-4 h-4 mr-1"></i> 删除角色
+                            </button>
+                            <div>
+                                <button type="button" id="cancel-edit-character" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">取消</button>
+                                <button type="submit" class="btn-primary px-4 py-2 rounded-lg">保存</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('close-edit-character-modal').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            document.getElementById('cancel-edit-character').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+
+            document.getElementById('delete-character-btn').addEventListener('click', () => {
+                if (confirm('确定要删除这个角色吗？此操作无法撤销。')) {
+                    deleteCharacter(animeId, characterId);
+                    document.body.removeChild(modal);
+                }
+            });
+
+            document.getElementById('edit-character-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('edit-character-name').value;
+                const imageFile = document.getElementById('edit-character-image').files[0];
+
+                if (imageFile) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        updateCharacter(animeId, characterId, { name, image: event.target.result });
+                    };
+                    reader.readAsDataURL(imageFile);
+                } else {
+                    updateCharacter(animeId, characterId, { name });
+                }
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+
+            lucide.createIcons();
+        }
+
+        // 更新角色信息
+        function updateCharacter(animeId, characterId, updates) {
+            const anime = animes.find(a => a.id === animeId);
+            const characterIndex = anime.characters.findIndex(c => c.id === characterId);
+            if (characterIndex !== -1) {
+                const oldName = anime.characters[characterIndex].name;
+                anime.characters[characterIndex] = { ...anime.characters[characterIndex], ...updates };
+                saveAnimes();
+                alert(`角色《${oldName}》已更新为《${anime.characters[characterIndex].name}》`);
+                document.body.removeChild(document.querySelector('.fixed.inset-0.z-50')); // 关闭模态框
+                renderAnimeDetail(animeId);
+            }
+        }
+
+        // 删除角色
+        function deleteCharacter(animeId, characterId) {
+            const anime = animes.find(a => a.id === animeId);
+            const characterIndex = anime.characters.findIndex(c => c.id === characterId);
+            if (characterIndex !== -1) {
+                const character = anime.characters[characterIndex];
+                const characterName = character.name;
+                
+                // 二次确认，明确告知将删除立绘等所有数据
+                if (confirm(`确定要删除角色《${characterName}》吗？此操作将删除该角色的所有信息，包括立绘图片、参数设置和趋势数据，且无法撤销。`)) {
+                    
+                    // 清理角色相关的本地存储数据
+                    const characterDataKey = `character_data_${characterId}`;
+                    const characterTrendKey = `character_trend_${characterId}`;
+                    localStorage.removeItem(characterDataKey);
+                    localStorage.removeItem(characterTrendKey);
+                    
+                    // 从番剧数据中彻底移除角色对象（包含立绘信息）
+                    anime.characters.splice(characterIndex, 1);
+                    
+                    // 保存更改并刷新界面
+                    saveAnimes();
+                    
+                    // 强制重新渲染番剧详情，确保立绘立即从列表中消失
+                    renderAnimeDetail(animeId);
+                    
+                    // 如果当前正在查看某一集，也需要刷新集数详情中的角色列表
+                    const episodeContent = document.getElementById('episode-content');
+                    if (episodeContent && !episodeContent.classList.contains('hidden')) {
+                        viewEpisode(animeId, currentEpisodeIndex);
+                    }
+                    
+                    alert(`角色《${characterName}》已成功删除，所有相关数据（包括立绘）已清理完毕。`);
+                }
+            }
+        }
+
+        // 删除番剧
+        function deleteAnime(animeId) {
+            const animeIndex = animes.findIndex(a => a.id === animeId);
+            if (animeIndex !== -1) {
+                const anime = animes[animeIndex];
+                const animeName = anime.name;
+                
+                // 清理番剧相关的本地存储数据
+                anime.characters.forEach(character => {
+                    const characterDataKey = `character_data_${character.id}`;
+                    const characterTrendKey = `character_trend_${character.id}`;
+                    localStorage.removeItem(characterDataKey);
+                    localStorage.removeItem(characterTrendKey);
+                });
+                
+                // 从数据中彻底移除番剧对象
+                animes.splice(animeIndex, 1);
+                
+                // 保存更改并刷新界面
+                saveAnimes();
+                renderAnimeList();
+                
+                // 如果当前正在查看该番剧的详情，关闭详情模态框
+                const animeDetailModal = document.getElementById('anime-detail-modal');
+                if (!animeDetailModal.classList.contains('hidden')) {
+                    animeDetailModal.classList.add('hidden');
+                }
+                
+                alert(`番剧《${animeName}》已成功删除，所有相关数据已清理完毕。`);
+            }
+        }
+
+        // 保存数据到本地存储
+        function saveAnimes() {
+            localStorage.setItem('animes', JSON.stringify(animes));
+        }
+
+        // 从本地存储加载数据
+        function loadAnimes() {
+            const saved = localStorage.getItem('animes');
+            if (saved && saved !== '[]') {
+                animes = JSON.parse(saved);
+                console.log('从本地存储加载数据:', animes);
+            } else {
+                console.log('使用初始数据');
+                // 如果本地存储为空或只有空数组，则使用初始数据并保存到本地存储
+                localStorage.setItem('animes', JSON.stringify(animes));
+            }
+        }
+
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>
